@@ -1,12 +1,14 @@
 CXX = g++
 CXXFLAGS = -Wall -O3 -std=c++17
-SRC = src/simulatore_trading.cpp
-OUT = simulatore_trading
+LDFLAGS = 
+SRC = src/main.cpp src/dataloader.cpp src/printer.cpp src/simulator.cpp
+OBJ = $(SRC:.cpp=.o)
+TARGET = simulatore_trading
 
-all: $(OUT)
+all: $(TARGET)
 
-$(OUT): $(SRC)
+$(TARGET): $(OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 clean:
-	rm -f $(OUT)
+	rm -f $(OBJ) $(TARGET)
