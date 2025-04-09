@@ -1,0 +1,1 @@
+./simulatore_trading data/DAT_ASCII_GBPJPY_M1_2024.csv   -W 600   -TPmin 0.01 -TPmax 0.1   -SLmin 0.1 -SLmax 1   -P 3   -C 100 -FEE 0.05 -PER 1 -exit_mode leave
