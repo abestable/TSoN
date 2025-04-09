@@ -19,7 +19,7 @@ void simula(const std::vector<double>& tp_list, const std::vector<double>& sl_li
 	double ricavi = 0.0, perdite = 0.0, fee_totali = 0.0;
 	int successi = 0, fallimenti = 0, non_chiusi = 0;
 	for (size_t i = 0; i + finestra < dati.size(); i += periodo) {
-	  // if (capitale > capitale_per_trade+1) {
+	   if (capitale > capitale_per_trade+1) {
 	  double open = dati[i].open;
 	  if (DEBUG) std::cout << "aperta posizione a: " << dati[i].open << " con capitale disponibile << " << capitale << std::endl ;
 	  double target_tp = tipo == "LONG" ? open * (1.0 + tp / 100.0) : open * (1.0 - tp / 100.0);
@@ -81,7 +81,8 @@ void simula(const std::vector<double>& tp_list, const std::vector<double>& sl_li
 	      non_chiusi++;
 	    }
 	  }
-	  
+	   }
+	   else { std::cout << "finito capitale" << std::endl; }
 	}
       
 
