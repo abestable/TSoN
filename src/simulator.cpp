@@ -15,10 +15,13 @@ void simula(const std::vector<double>& tp_list, const std::vector<double>& sl_li
       double  ricaviS = 0.0, perditeS = 0.0, fee_totaliS = 0.0, percent_successiS = 0, non_chiusiS = 0;
       for (std::string tipo : {"LONG", "SHORT"}) {
 	double capitale = capitale_iniziale;
+	if (DEBUG) std::cout << "reset capitale iniziale: " << capitale_iniziale << std::endl;
 	double ricavi = 0.0, perdite = 0.0, fee_totali = 0.0;
 	int successi = 0, fallimenti = 0, non_chiusi = 0;
 	for (size_t i = 0; i + finestra < dati.size(); i += periodo) {
+	  // if (capitale > capitale_per_trade+1) {
 	  double open = dati[i].open;
+	  if (DEBUG) std::cout << "aperta posizione a: " << dati[i].open << " con capitale disponibile << " << capitale << std::endl ;
 	  double target_tp = tipo == "LONG" ? open * (1.0 + tp / 100.0) : open * (1.0 - tp / 100.0);
 	  double target_sl = tipo == "LONG" ? open * (1.0 - sl / 100.0) : open * (1.0 + sl / 100.0);
 	  bool hit_tp = false, hit_sl = false;
@@ -49,6 +52,7 @@ void simula(const std::vector<double>& tp_list, const std::vector<double>& sl_li
 	    capitale -= (loss + fee_val);
 	    fallimenti++;
 	    if (DEBUG) std::cout << "HIT_SL  fee_val " << fee_val << std::setw(10) << " loss " << loss << " ricavi : " << ricavi << " perdite " << perdite << " fee_totali " << fee_totali << " capitale " << capitale << " success " << successi <<  " fails " << fallimenti <<  std::endl;
+	    if (capitale < 0) std::cerr << "Finito il capitale disponibile" << std::endl;
 	  } 
 	  else {
 	    if (EXIT_MODE_CLOSE) {
@@ -77,6 +81,7 @@ void simula(const std::vector<double>& tp_list, const std::vector<double>& sl_li
 	      non_chiusi++;
 	    }
 	  }
+	  
 	}
       
 
@@ -99,8 +104,8 @@ void simula(const std::vector<double>& tp_list, const std::vector<double>& sl_li
 	non_chiusiS = non_chiusi;
       }
       }
-      double roi_hedge = (ricaviL+ricaviS-perditeL-perditeS)/capitale_iniziale*100;
-	stampa_riga(tp, sl, "Hedge", (percent_successiL+percent_successiS)/2 , ricaviL+ricaviS, ricaviL+ricaviS-perditeL-perditeS+capitale_iniziale, perditeL+perditeS, fee_totaliL+fee_totaliS, roi_hedge, non_chiusiL+non_chiusiS);
+      double roi_hedge = (ricaviL+ricaviS-perditeL-perditeS-fee_totaliS - fee_totaliL)/capitale_iniziale*100;
+	stampa_riga(tp, sl, "Hedge", (percent_successiL+percent_successiS)/2 , ricaviL+ricaviS, ricaviL+ricaviS-perditeL-perditeS+capitale_iniziale-fee_totaliS-fee_totaliL, perditeL+perditeS, fee_totaliL+fee_totaliS, roi_hedge, non_chiusiL+non_chiusiS);
     }
   }
 }
