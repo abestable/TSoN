@@ -33,9 +33,14 @@ std::vector<Candela> leggi_csv(const std::string& filepath, bool& errore_apertur
 
 std::vector<double> genera_range(double min, double max, int punti) {
     std::vector<double> valori;
-    if (punti <= 1) { valori.push_back(min); return valori; }
+    if (punti <= 1) {
+        valori.push_back(min);
+        return valori;
+    }
+
     double step = (max - min) / (punti - 1);
     for (int i = 0; i < punti; ++i)
         valori.push_back(min + i * step);
+
     return valori;
 }

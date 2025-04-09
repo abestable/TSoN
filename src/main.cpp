@@ -32,6 +32,7 @@ int main(int argc, char* argv[]) {
         else if (arg == "-C") capitale_per_trade = std::stod(argv[++i]);
         else if (arg == "-FEE") fee = std::stod(argv[++i]) / 100.0;
     }
+std::cout << "DEBUG: TPmin = " << tp_min << "  TPmax = " << tp_max << "  SLmin = " << sl_min << "  SLmax = " << sl_max << std::endl;
 
     bool errore_apertura = false;
     auto dati = leggi_csv(filepath, errore_apertura);
@@ -40,10 +41,12 @@ int main(int argc, char* argv[]) {
     auto tp_list = genera_range(tp_min, tp_max, punti);
     auto sl_list = genera_range(sl_min, sl_max, punti);
 
+    
     std::cout << "\nAnalizzati " << dati.size() - finestra << " trade\n\n";
     stampa_intestazione_tabella();
     simula(tp_list, sl_list, dati, finestra, capitale_per_trade, fee);
     stampa_fine_tabella();
+
 
     return 0;
 }
