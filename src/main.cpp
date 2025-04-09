@@ -17,6 +17,8 @@ int main(int argc, char* argv[]) {
     size_t finestra = 0;
     double capitale_per_trade = 0.0, fee = 0.0, tp_min = 0, tp_max = 0, sl_min = 0, sl_max = 0;
     int punti = 0;
+    int periodo = 1;  // default: un trade ogni minuto
+    bool EXIT_MODE_CLOSE = true;
 
     for (int i = 1; i < argc; ++i)
         if (std::string(argv[i]) == "-debug") DEBUG = true;
@@ -31,8 +33,20 @@ int main(int argc, char* argv[]) {
         else if (arg == "-P") punti = std::stoi(argv[++i]);
         else if (arg == "-C") capitale_per_trade = std::stod(argv[++i]);
         else if (arg == "-FEE") fee = std::stod(argv[++i]) / 100.0;
+	else if (arg == "-PER") periodo = std::stoi(argv[++i]);
+	else if (arg == "-exit_mode") {
+	  std::string mode = argv[++i];
+	  if (mode == "close") EXIT_MODE_CLOSE = true;
+	  else if (mode == "leave") EXIT_MODE_CLOSE = false;
+	  else {
+	    std::cerr << "Valori validi per -exit_mode: close | leave\n";
+	    return 1;
+	  }
+	}
+
+	
+	
     }
-std::cout << "DEBUG: TPmin = " << tp_min << "  TPmax = " << tp_max << "  SLmin = " << sl_min << "  SLmax = " << sl_max << std::endl;
 
     bool errore_apertura = false;
     auto dati = leggi_csv(filepath, errore_apertura);
@@ -42,10 +56,19 @@ std::cout << "DEBUG: TPmin = " << tp_min << "  TPmax = " << tp_max << "  SLmin =
     auto sl_list = genera_range(sl_min, sl_max, punti);
 
     
-    std::cout << "\nAnalizzati " << dati.size() - finestra << " trade\n\n";
     stampa_intestazione_tabella();
-    simula(tp_list, sl_list, dati, finestra, capitale_per_trade, fee);
+    simula(tp_list, sl_list, dati, finestra, capitale_per_trade, fee, periodo, EXIT_MODE_CLOSE);
     stampa_fine_tabella();
+
+    
+    std::cout << "\nDati caricati " << dati.size() - finestra << " minuti di storico\n\n";
+    size_t n_trade_simulati = (dati.size() > finestra) ? (dati.size() - finestra) / periodo : 0;
+    std::cout << "\nAnalizzati " << n_trade_simulati << " trade (ogni " << periodo << " min)\n\n";
+
+    if (!EXIT_MODE_CLOSE) {
+      std::cout << "\n*** ATTENZIONE: Il ROI è calcolato solo sui trade chiusi (TP o SL). "
+		<< "I trade non chiusi sono esclusi dai risultati. ***\n\n";
+    }
 
 
     return 0;
