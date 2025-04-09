@@ -63,6 +63,32 @@ TSoN/
 ├── esempiorun            # Esempio di comando per avviare una simulazione
 ```
 
+## 📌 Versioni
+
+### 🏷️ v0.3.0 - Debug interno e strategie hedge (9 aprile 2025)
+- Aggiunta la modalità **hedge**: è ora possibile mantenere più posizioni contemporaneamente
+- Inserite variabili e stampe di **debug** per tracciare il comportamento del simulatore
+- Corretto il calcolo delle operazioni in modalità hedge
+- Fix di bug minori legati alla logica di uscita dal trade
+
+### 🏷️ v0.2.0 - Riorganizzazione del codice
+- Strutturazione modulare in più file (`dataloader`, `simulator`, `printer`, ecc.)
+- Separazione della logica in `src/` e `data/`
+- Introduzione di un `Makefile` per la compilazione
+- Aggiunta `.gitignore` per evitare file di build nel repo
+
+### 🏷️ v0.1.0 - Prima versione stabile
+- Simulazione di strategie di trading su dati OHLC da CSV
+- Generazione griglia TP/SL parametrica
+- Capitale iniziale, fee, finestra temporale e capitale per trade configurabili
+- Output dei risultati su stdout in formato tabellare
+- Aggiunto esempio di comando in `esempiorun`
+- Colori nella stampa dei risultati
+
+### 🧪 Versioni instabili precedenti
+- Commit iniziali con versioni di test e sviluppo
+
+
 
 ## 📌 TODO futuri
 
