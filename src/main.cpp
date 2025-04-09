@@ -20,6 +20,7 @@ int main(int argc, char* argv[]) {
     int periodo = 1;  // default: un trade ogni minuto
     bool EXIT_MODE_CLOSE = true;
     bool exit_mode_found = false;
+    bool only_hedge = false;
 
     for (int i = 1; i < argc; ++i)
         if (std::string(argv[i]) == "-debug") DEBUG = true;
@@ -36,6 +37,7 @@ int main(int argc, char* argv[]) {
         else if (arg == "-C") capitale = std::stod(argv[++i]);
         else if (arg == "-FEE") fee = std::stod(argv[++i]) / 100.0;
 	else if (arg == "-PER") periodo = std::stoi(argv[++i]);
+	else if (arg == "-OH") only_hedge = true;
 	else if (arg == "-exit_mode") {
 	  std::string mode = argv[++i];
 	  if (mode == "close") {
@@ -64,7 +66,7 @@ int main(int argc, char* argv[]) {
 
     
     stampa_intestazione_tabella();
-    simula(tp_list, sl_list, dati, finestra, capitale_per_trade, fee, periodo, EXIT_MODE_CLOSE, capitale);
+    simula(tp_list, sl_list, dati, finestra, capitale_per_trade, fee, periodo, EXIT_MODE_CLOSE, capitale, only_hedge);
     stampa_fine_tabella();
 
     

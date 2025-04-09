@@ -8,7 +8,7 @@ extern bool DEBUG;
 
 void simula(const std::vector<double>& tp_list, const std::vector<double>& sl_list,
             const std::vector<Candela>& dati, size_t finestra,
-            double capitale_per_trade, double fee, int periodo, bool EXIT_MODE_CLOSE, double capitale_iniziale) {
+            double capitale_per_trade, double fee, int periodo, bool EXIT_MODE_CLOSE, double capitale_iniziale, bool only_hedge) {
   for (double tp : tp_list) {
     for (double sl : sl_list) {
       double  ricaviL = 0.0, perditeL = 0.0, fee_totaliL = 0.0, percent_successiL = 0, non_chiusiL = 0;
@@ -84,7 +84,7 @@ void simula(const std::vector<double>& tp_list, const std::vector<double>& sl_li
       double roi = ((capitale - capitale_iniziale) / capitale_iniziale) * 100.0;
       double percent_success = totale > 0 ? 100.0 * successi / totale : 0.0;
 
-      stampa_riga(tp, sl, tipo, percent_success, ricavi, capitale, perdite, fee_totali, roi, non_chiusi);
+      if (!only_hedge) stampa_riga(tp, sl, tipo, percent_success, ricavi, capitale, perdite, fee_totali, roi, non_chiusi);
       if (tipo == "LONG") {
 	ricaviL = ricavi;
 	perditeL = perdite;
@@ -100,7 +100,7 @@ void simula(const std::vector<double>& tp_list, const std::vector<double>& sl_li
       }
       }
       double roi_hedge = (ricaviL+ricaviS-perditeL-perditeS)/capitale_iniziale*100;
-	stampa_riga(tp, sl, "Hedge", (percent_successiL+percent_successiS)/2 , ricaviL+ricaviS, ricaviL+ricaviS-perditeL-perditeS, perditeL+perditeS, fee_totaliL+fee_totaliS, roi_hedge, non_chiusiL+non_chiusiS);
+	stampa_riga(tp, sl, "Hedge", (percent_successiL+percent_successiS)/2 , ricaviL+ricaviS, ricaviL+ricaviS-perditeL-perditeS+capitale_iniziale, perditeL+perditeS, fee_totaliL+fee_totaliS, roi_hedge, non_chiusiL+non_chiusiS);
     }
   }
 }
