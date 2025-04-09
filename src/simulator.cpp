@@ -13,8 +13,10 @@ void simula(const std::vector<double>& tp_list, const std::vector<double>& sl_li
     for (double sl : sl_list) {
       double  ricaviL = 0.0, perditeL = 0.0, fee_totaliL = 0.0, percent_successiL = 0, non_chiusiL = 0;
       double  ricaviS = 0.0, perditeS = 0.0, fee_totaliS = 0.0, percent_successiS = 0, non_chiusiS = 0;
+      bool finitocapitale = false;
       for (std::string tipo : {"LONG", "SHORT"}) {
 	double capitale = capitale_iniziale;
+	finitocapitale = false;
 	if (DEBUG) std::cout << "reset capitale iniziale: " << capitale_iniziale << std::endl;
 	double ricavi = 0.0, perdite = 0.0, fee_totali = 0.0;
 	int successi = 0, fallimenti = 0, non_chiusi = 0;
@@ -82,7 +84,7 @@ void simula(const std::vector<double>& tp_list, const std::vector<double>& sl_li
 	    }
 	  }
 	   }
-	   else { std::cout << "finito capitale" << std::endl; }
+	   else {finitocapitale = true; }
 	}
       
 
@@ -106,7 +108,12 @@ void simula(const std::vector<double>& tp_list, const std::vector<double>& sl_li
       }
       }
       double roi_hedge = (ricaviL+ricaviS-perditeL-perditeS-fee_totaliS - fee_totaliL)/capitale_iniziale*100;
-	stampa_riga(tp, sl, "Hedge", (percent_successiL+percent_successiS)/2 , ricaviL+ricaviS, ricaviL+ricaviS-perditeL-perditeS+capitale_iniziale-fee_totaliS-fee_totaliL, perditeL+perditeS, fee_totaliL+fee_totaliS, roi_hedge, non_chiusiL+non_chiusiS);
+      if (!finitocapitale)
+	{ stampa_riga(tp, sl, "Hedge", (percent_successiL+percent_successiS)/2 , ricaviL+ricaviS, ricaviL+ricaviS-perditeL-perditeS+capitale_iniziale-fee_totaliS-fee_totaliL, perditeL+perditeS, fee_totaliL+fee_totaliS, roi_hedge, non_chiusiL+non_chiusiS); }
+      else
+	{
+	  std::cout << "finito capitale "<< std::endl;
+	}
     }
   }
 }
