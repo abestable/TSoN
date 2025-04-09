@@ -15,7 +15,7 @@ int main(int argc, char* argv[]) {
 
     std::string filepath = argv[1];
     size_t finestra = 0;
-    double capitale_per_trade = 0.0, fee = 0.0, tp_min = 0, tp_max = 0, sl_min = 0, sl_max = 0;
+    double capitale_per_trade = 0.0, fee = 0.0, tp_min = 0, tp_max = 0, sl_min = 0, sl_max = 0, capitale = 0;
     int punti = 0;
     int periodo = 1;  // default: un trade ogni minuto
     bool EXIT_MODE_CLOSE = true;
@@ -32,7 +32,8 @@ int main(int argc, char* argv[]) {
         else if (arg == "-SLmin") sl_min = std::stod(argv[++i]);
         else if (arg == "-SLmax") sl_max = std::stod(argv[++i]);
         else if (arg == "-P") punti = std::stoi(argv[++i]);
-        else if (arg == "-C") capitale_per_trade = std::stod(argv[++i]);
+        else if (arg == "-CPT") capitale_per_trade = std::stod(argv[++i]);
+        else if (arg == "-C") capitale = std::stod(argv[++i]);
         else if (arg == "-FEE") fee = std::stod(argv[++i]) / 100.0;
 	else if (arg == "-PER") periodo = std::stoi(argv[++i]);
 	else if (arg == "-exit_mode") {
@@ -63,7 +64,7 @@ int main(int argc, char* argv[]) {
 
     
     stampa_intestazione_tabella();
-    simula(tp_list, sl_list, dati, finestra, capitale_per_trade, fee, periodo, EXIT_MODE_CLOSE);
+    simula(tp_list, sl_list, dati, finestra, capitale_per_trade, fee, periodo, EXIT_MODE_CLOSE, capitale);
     stampa_fine_tabella();
 
     
