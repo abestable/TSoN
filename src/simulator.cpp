@@ -83,14 +83,14 @@ void simula(const std::vector<double>& tp_list, const std::vector<double>& sl_li
 	    }
 	  }
 	}
-      }
+      
 
       double totale = successi + fallimenti + non_chiusi;
       double roi = ((capitale - 1000.0) / 1000.0) * 100.0;
       double percent_success = totale > 0 ? 100.0 * successi / totale : 0.0;
 
       stampa_riga(tp, sl, tipo, percent_success, ricavi, capitale, perdite, fee_totali, roi, non_chiusi);
+      }
     }
   }
-}
 }

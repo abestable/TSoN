@@ -23,7 +23,7 @@ std::vector<Candela> leggi_csv(const std::string& filepath, bool& errore_apertur
         std::getline(ss, close, ';');
         std::getline(ss, volume, ';');
         try {
-            dati.push_back({datetime, std::stod(open), std::stod(high), std::stod(low)});
+	  dati.push_back({datetime, std::stod(open), std::stod(high), std::stod(low), std::stod(close)});
         } catch (...) {
             continue;
         }

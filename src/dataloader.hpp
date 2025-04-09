@@ -7,6 +7,7 @@ struct Candela {
     double open;
     double high;
     double low;
+    double close;
 };
 
 std::vector<Candela> leggi_csv(const std::string& filepath, bool& errore_apertura);

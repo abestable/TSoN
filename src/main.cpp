@@ -19,6 +19,7 @@ int main(int argc, char* argv[]) {
     int punti = 0;
     int periodo = 1;  // default: un trade ogni minuto
     bool EXIT_MODE_CLOSE = true;
+    bool exit_mode_found = false;
 
     for (int i = 1; i < argc; ++i)
         if (std::string(argv[i]) == "-debug") DEBUG = true;
@@ -36,16 +37,21 @@ int main(int argc, char* argv[]) {
 	else if (arg == "-PER") periodo = std::stoi(argv[++i]);
 	else if (arg == "-exit_mode") {
 	  std::string mode = argv[++i];
-	  if (mode == "close") EXIT_MODE_CLOSE = true;
-	  else if (mode == "leave") EXIT_MODE_CLOSE = false;
-	  else {
-	    std::cerr << "Valori validi per -exit_mode: close | leave\n";
+	  if (mode == "close") {
+	    EXIT_MODE_CLOSE = true;
+	    exit_mode_found = true;
+	  } else if (mode == "leave") {
+	    EXIT_MODE_CLOSE = false;
+	    exit_mode_found = true;
+	  } else {
+	    std::cerr << "Errore: valore non valido per -exit_mode. Usa 'close' oppure 'leave'.\n";
 	    return 1;
 	  }
 	}
-
-	
-	
+    }
+    if (!exit_mode_found) {
+      std::cerr << "Errore: l'argomento -exit_mode è obbligatorio (usa 'close' o 'leave').\n";
+      return 1;
     }
 
     bool errore_apertura = false;
