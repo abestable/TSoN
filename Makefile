@@ -1,8 +1,6 @@
-# Makefile per simulatore_trading
-
 CXX = g++
 CXXFLAGS = -Wall -O3 -std=c++17
-SRC = simulatore_trading.cpp
+SRC = src/simulatore_trading.cpp
 OUT = simulatore_trading
 
 all: $(OUT)

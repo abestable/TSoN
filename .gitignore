@@ -1,0 +1,9 @@
+# ignorare dati e output
+data/
+*.csv
+*.txt
+*.log
+
+# ignorare file di build
+*.o
+simulatore_trading
