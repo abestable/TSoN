@@ -1,0 +1,30 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug simulatore (WSL)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/simulatore_trading",
+      "args": [
+        "data/DAT_ASCII_GBPJPY_M1_2021.csv",
+        "-W", "6000",
+        "-PER", "10",
+        "-TPmin", "10",
+        "-TPmax", "30",
+        "-SLmin", "0.3",
+        "-SLmax", "0.4",
+        "-P", "5",
+        "-C", "10000",
+        "-CPT", "70",
+        "-FEE", "0.1",
+        "-exit_mode", "close",
+        "-OH"
+      ],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "MIMode": "gdb",
+      "miDebuggerPath": "/usr/bin/gdb"
+    }
+  ]
+}
