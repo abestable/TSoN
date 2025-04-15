@@ -156,13 +156,23 @@ void simula(const std::vector<double>& tp_list, const std::vector<double>& sl_li
         }
       }
       
-      // Calculate and print hedge strategy results (combining LONG and SHORT)
-      double roi_hedge = (ricaviL+ricaviS-perditeL-perditeS-fee_totaliS - fee_totaliL)/capitale_iniziale*100;
+      // Calcolo dei ricavi totali
+      double ricavi_totali = ricaviL + ricaviS;
+      
+      // Calcolo delle perdite totali
+      double perdite_totali = perditeL + perditeS;
+      
+      // Calcolo delle fee totali
+      double fee_totali = fee_totaliS + fee_totaliL;
+      
+      // Calcolo del ROI dell'hedge
+      double roi_hedge = (ricavi_totali - perdite_totali - fee_totali) / capitale_iniziale * 100;
+      
       if (!finitocapitale) {
         // Print hedge results if capital hasn't run out
-        stampa_riga(tp, sl, "Hedge", (percent_successiL+percent_successiS)/2, ricaviL+ricaviS, 
-                   ricaviL+ricaviS-perditeL-perditeS+capitale_iniziale-fee_totaliS-fee_totaliL, 
-                   perditeL+perditeS, fee_totaliL+fee_totaliS, roi_hedge, non_chiusiL+non_chiusiS);
+        stampa_riga(tp, sl, "Hedge", (percent_successiL+percent_successiS)/2, ricavi_totali, 
+                   ricavi_totali-perdite_totali+capitale_iniziale-fee_totali, 
+                   perdite_totali, fee_totali, roi_hedge, non_chiusiL+non_chiusiS);
       } else {
         // Print message if capital has run out
         std::cout << "finito capitale "<< std::endl;
