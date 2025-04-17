@@ -17,6 +17,7 @@ struct TradeResult {
     int fallimenti = 0;       // Numero di trade in perdita
     int non_chiusi = 0;       // Numero di trade non chiusi
     double percent_success = 0.0;  // Percentuale di successo
+    double percent_no_tp_sl = 0.0; // Percentuale di trade non chiusi
 };
 
 /**
@@ -174,7 +175,7 @@ TradeResult simulate_strategy(const std::vector<Candela>& dati, size_t finestra,
     // Calcola la percentuale di successo
     double totale = result.successi + result.fallimenti + result.non_chiusi;
     result.percent_success = totale > 0 ? 100.0 * result.successi / totale : 0.0;
-    double percent_no_tp_sl = totale > 0 ? 100.0 * result.non_chiusi / totale : 0.0;
+    result.percent_no_tp_sl = totale > 0 ? 100.0 * result.non_chiusi / totale : 0.0;
     
     return result;
 }
@@ -208,16 +209,12 @@ void simula(const std::vector<double>& tp_list, const std::vector<double>& sl_li
                                          EXIT_MODE_CLOSE, capitale, tp, sl, true);
             finitocapitale = capitale <= capitale_per_trade + 1;
             
-            // Calcola percentuale di trade che non hanno toccato TP/SL
-            double totale_long = long_result.successi + long_result.fallimenti + long_result.non_chiusi;
-            double percent_no_tp_sl_long = totale_long > 0 ? 100.0 * long_result.non_chiusi / totale_long : 0.0;
-            
             // Stampa risultati LONG se richiesto
             if (!only_hedge) {
                 double roi = ((capitale - capitale_iniziale) / capitale_iniziale) * 100.0;
                 stampa_riga(tp, sl, "LONG", long_result.percent_success, long_result.ricavi,
-                           capitale, long_result.perdite, long_result.fee_totali, roi, 
-                           long_result.non_chiusi, percent_no_tp_sl_long);
+                           capitale, long_result.perdite, long_result.fee_totali, roi,
+                           long_result.non_chiusi, long_result.percent_no_tp_sl);
             }
             
             // Simula strategia SHORT
@@ -226,16 +223,12 @@ void simula(const std::vector<double>& tp_list, const std::vector<double>& sl_li
                                           EXIT_MODE_CLOSE, capitale, tp, sl, false);
             finitocapitale |= capitale <= capitale_per_trade + 1;
             
-            // Calcola percentuale di trade che non hanno toccato TP/SL
-            double totale_short = short_result.successi + short_result.fallimenti + short_result.non_chiusi;
-            double percent_no_tp_sl_short = totale_short > 0 ? 100.0 * short_result.non_chiusi / totale_short : 0.0;
-            
             // Stampa risultati SHORT se richiesto
             if (!only_hedge) {
                 double roi = ((capitale - capitale_iniziale) / capitale_iniziale) * 100.0;
                 stampa_riga(tp, sl, "SHORT", short_result.percent_success, short_result.ricavi,
-                           capitale, short_result.perdite, short_result.fee_totali, roi, 
-                           short_result.non_chiusi, percent_no_tp_sl_short);
+                           capitale, short_result.perdite, short_result.fee_totali, roi,
+                           short_result.non_chiusi, short_result.percent_no_tp_sl);
             }
             
             // Calcola e stampa risultati della strategia hedge se il capitale non è finito
@@ -246,11 +239,11 @@ void simula(const std::vector<double>& tp_list, const std::vector<double>& sl_li
                 double roi_hedge = (ricavi_totali - perdite_totali - fee_totali) / capitale_iniziale * 100;
                 
                 // Calcola percentuale media di trade che non hanno toccato TP/SL per la strategia hedge
-                double percent_no_tp_sl_hedge = (percent_no_tp_sl_long + percent_no_tp_sl_short) / 2.0;
+                double percent_no_tp_sl_hedge = (long_result.percent_no_tp_sl + short_result.percent_no_tp_sl) / 2.0;
                 
                 stampa_riga(tp, sl, "Hedge", (long_result.percent_success + short_result.percent_success) / 2,
                            ricavi_totali, ricavi_totali - perdite_totali + capitale_iniziale - fee_totali,
-                           perdite_totali, fee_totali, roi_hedge, 
+                           perdite_totali, fee_totali, roi_hedge,
                            long_result.non_chiusi + short_result.non_chiusi, percent_no_tp_sl_hedge);
             }
         }
