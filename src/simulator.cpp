@@ -1,34 +1,11 @@
 #include "simulator.hpp"
 #include "printer.hpp"
+#include "plotter.hpp"
 #include <iostream>
 #include <iomanip>
+#include <limits>
 
 extern bool DEBUG;
-
-/**
- * @brief Struttura che tiene traccia dei risultati di una strategia di trading
- * Contiene tutte le metriche di performance come ricavi, perdite, successi, ecc.
- */
-struct TradeResult {
-    double ricavi = 0.0;      // Profitti totali
-    double perdite = 0.0;     // Perdite totali
-    double fee_totali = 0.0;  // Commissioni totali
-    int successi = 0;         // Numero di trade in profitto
-    int fallimenti = 0;       // Numero di trade in perdita
-    int non_chiusi = 0;       // Numero di trade non chiusi
-    double percent_success = 0.0;  // Percentuale di successo
-};
-
-/**
- * @brief Struttura che rappresenta una posizione di trading
- * Contiene i prezzi di apertura e i livelli di take profit e stop loss
- */
-struct Position {
-    double open_price;    // Prezzo di apertura della posizione
-    double target_tp;     // Livello di take profit
-    double target_sl;     // Livello di stop loss
-    bool is_long;         // true se posizione long, false se short
-};
 
 /**
  * @brief Calcola i livelli di take profit e stop loss per una posizione
@@ -174,7 +151,6 @@ TradeResult simulate_strategy(const std::vector<Candela>& dati, size_t finestra,
     // Calcola la percentuale di successo
     double totale = result.successi + result.fallimenti + result.non_chiusi;
     result.percent_success = totale > 0 ? 100.0 * result.successi / totale : 0.0;
-    double percent_no_tp_sl = totale > 0 ? 100.0 * result.non_chiusi / totale : 0.0;
     
     return result;
 }
@@ -196,9 +172,17 @@ void simula(const std::vector<double>& tp_list, const std::vector<double>& sl_li
             const std::vector<Candela>& dati, size_t finestra,
             double capitale_per_trade, double fee, int periodo, bool EXIT_MODE_CLOSE, 
             double capitale_iniziale, bool only_hedge) {
+    
+    // Matrici per memorizzare i risultati per lo shmoo plot
+    std::vector<std::vector<double>> roi_matrix_long(sl_list.size(), std::vector<double>(tp_list.size()));
+    std::vector<std::vector<double>> roi_matrix_short(sl_list.size(), std::vector<double>(tp_list.size()));
+    std::vector<std::vector<double>> roi_matrix_hedge(sl_list.size(), std::vector<double>(tp_list.size()));
+    
     // Itera attraverso tutte le combinazioni di TP e SL
-    for (double tp : tp_list) {
-        for (double sl : sl_list) {
+    for (size_t i = 0; i < sl_list.size(); ++i) {
+        double sl = sl_list[i];
+        for (size_t j = 0; j < tp_list.size(); ++j) {
+            double tp = tp_list[j];
             TradeResult long_result, short_result;
             bool finitocapitale = false;
             
@@ -212,11 +196,14 @@ void simula(const std::vector<double>& tp_list, const std::vector<double>& sl_li
             double totale_long = long_result.successi + long_result.fallimenti + long_result.non_chiusi;
             double percent_no_tp_sl_long = totale_long > 0 ? 100.0 * long_result.non_chiusi / totale_long : 0.0;
             
+            // Calcola ROI per LONG
+            double roi_long = ((capitale - capitale_iniziale) / capitale_iniziale) * 100.0;
+            roi_matrix_long[i][j] = roi_long;
+            
             // Stampa risultati LONG se richiesto
             if (!only_hedge) {
-                double roi = ((capitale - capitale_iniziale) / capitale_iniziale) * 100.0;
                 stampa_riga(tp, sl, "LONG", long_result.percent_success, long_result.ricavi,
-                           capitale, long_result.perdite, long_result.fee_totali, roi, 
+                           capitale, long_result.perdite, long_result.fee_totali, roi_long, 
                            long_result.non_chiusi, percent_no_tp_sl_long);
             }
             
@@ -230,11 +217,14 @@ void simula(const std::vector<double>& tp_list, const std::vector<double>& sl_li
             double totale_short = short_result.successi + short_result.fallimenti + short_result.non_chiusi;
             double percent_no_tp_sl_short = totale_short > 0 ? 100.0 * short_result.non_chiusi / totale_short : 0.0;
             
+            // Calcola ROI per SHORT
+            double roi_short = ((capitale - capitale_iniziale) / capitale_iniziale) * 100.0;
+            roi_matrix_short[i][j] = roi_short;
+            
             // Stampa risultati SHORT se richiesto
             if (!only_hedge) {
-                double roi = ((capitale - capitale_iniziale) / capitale_iniziale) * 100.0;
                 stampa_riga(tp, sl, "SHORT", short_result.percent_success, short_result.ricavi,
-                           capitale, short_result.perdite, short_result.fee_totali, roi, 
+                           capitale, short_result.perdite, short_result.fee_totali, roi_short, 
                            short_result.non_chiusi, percent_no_tp_sl_short);
             }
             
@@ -245,6 +235,9 @@ void simula(const std::vector<double>& tp_list, const std::vector<double>& sl_li
                 double fee_totali = long_result.fee_totali + short_result.fee_totali;
                 double roi_hedge = (ricavi_totali - perdite_totali - fee_totali) / capitale_iniziale * 100;
                 
+                // Salva ROI per hedge
+                roi_matrix_hedge[i][j] = roi_hedge;
+                
                 // Calcola percentuale media di trade che non hanno toccato TP/SL per la strategia hedge
                 double percent_no_tp_sl_hedge = (percent_no_tp_sl_long + percent_no_tp_sl_short) / 2.0;
                 
@@ -252,7 +245,18 @@ void simula(const std::vector<double>& tp_list, const std::vector<double>& sl_li
                            ricavi_totali, ricavi_totali - perdite_totali + capitale_iniziale - fee_totali,
                            perdite_totali, fee_totali, roi_hedge, 
                            long_result.non_chiusi + short_result.non_chiusi, percent_no_tp_sl_hedge);
+            } else {
+                // Se il capitale è finito, imposta un valore molto negativo per indicare il fallimento
+                roi_matrix_hedge[i][j] = -999.0;
             }
         }
     }
+    
+    // Stampa gli shmoo plot
+    if (!only_hedge) {
+        stampa_shmoo_plot(tp_list, sl_list, roi_matrix_long, "ROI Shmoo Plot - LONG");
+        stampa_shmoo_plot(tp_list, sl_list, roi_matrix_short, "ROI Shmoo Plot - SHORT");
+    }
+    stampa_shmoo_plot(tp_list, sl_list, roi_matrix_hedge, "ROI Shmoo Plot - HEDGE");
 }
+

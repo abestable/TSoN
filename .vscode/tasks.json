@@ -13,6 +13,7 @@
         "src/dataloader.cpp",
         "src/printer.cpp",
         "src/simulator.cpp",
+        "src/plotter.cpp",
         "-o",
         "simulatore_trading"
       ],
@@ -34,6 +35,7 @@
         "src/dataloader.cpp",
         "src/printer.cpp",
         "src/simulator.cpp",
+        "src/plotter.cpp",
         "-o",
         "simulatore_trading"
       ],
@@ -48,14 +50,14 @@
         "data/DAT_ASCII_GBPJPY_M1_2021.csv",
         "-W", "6000",
         "-PER", "10",
-        "-TPmin", "10",
-        "-TPmax", "30",
+        "-TPmin", "0.1",
+        "-TPmax", "0.4",
         "-SLmin", "0.3",
         "-SLmax", "0.4",
         "-P", "5",
         "-C", "10000",
         "-CPT", "70",
-        "-FEE", "0.1",
+        "-FEE", "0",
         "-exit_mode", "close",
         "-OH"
       ],

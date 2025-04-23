@@ -1,14 +1,21 @@
 CXX = g++
-CXXFLAGS = -Wall -O3 -std=c++17
-LDFLAGS = 
-SRC = src/main.cpp src/dataloader.cpp src/printer.cpp src/simulator.cpp
-OBJ = $(SRC:.cpp=.o)
+CXXFLAGS = -O3 -Wall -std=c++17
+PYTHON_INCLUDE = $(shell python3 -m pybind11 --includes)
+PYTHON_LIBS = $(shell python3-config --ldflags)
+
+SRCS = src/main.cpp src/dataloader.cpp src/printer.cpp src/simulator.cpp src/plotter.cpp
+OBJS = $(SRCS:.cpp=.o)
 TARGET = simulatore_trading
 
 all: $(TARGET)
 
-$(TARGET): $(OBJ)
-	$(CXX) $(CXXFLAGS) -o $@ $^
+$(TARGET): $(OBJS)
+	$(CXX) $(OBJS) -o $(TARGET) $(PYTHON_LIBS)
+
+%.o: %.cpp
+	$(CXX) $(CXXFLAGS) $(PYTHON_INCLUDE) -c $< -o $@
 
 clean:
-	rm -f $(OBJ) $(TARGET)
+	rm -f $(OBJS) $(TARGET)
+
+.PHONY: all clean
