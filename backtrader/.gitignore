@@ -33,3 +33,4 @@ env/
 # Local development settings
 .env
 .env.local 
+
