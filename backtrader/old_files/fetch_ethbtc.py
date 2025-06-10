@@ -8,20 +8,8 @@ def get_days_for_timeframe(timeframe):
     """
     Get appropriate number of days to download based on timeframe
     """
-    if timeframe == '1m':
-        return 30  # 30 days for 1-minute data
-    elif timeframe == '5m':
-        return 60  # 60 days for 5-minute data
-    elif timeframe == '15m':
-        return 90  # 90 days for 15-minute data
-    elif timeframe == '1h':
-        return 365  # 1 year for hourly data
-    elif timeframe == '4h':
-        return 365  # 1 year for 4-hour data
-    elif timeframe == '1d':
-        return 365  # 1 year for daily data
-    else:
-        return 365  # default to 1 year
+    # Scarica almeno 3 anni per ogni timeframe
+    return 3 * 365
 
 def fetch_historical_klines(symbol, interval, start_str, end_str=None):
     """

@@ -33,16 +33,11 @@ class RandomEntryTPSL(bt.Strategy):
 
     def next(self):
         price = self.data.close[0]
-        pos = self.position.size
         if not self.position and (len(self) - self.last_entry) >= self.p.entry_period:
             cash = self.broker.getvalue() * self.p.size_pct
-            size = int(cash / price)
-            if size > 0:
-                # Trade type logic
-                if hasattr(self, 'trade_type'):
-                    ttype = self.trade_type.upper()
-                else:
-                    ttype = 'LONG'
+            size = cash / price  # Usa posizioni frazionarie
+            if size >= 0.001:
+                ttype = self.trade_type.upper() if hasattr(self, 'trade_type') else 'LONG'
                 if ttype == 'LONG':
                     self.order = self.buy(size=size)
                     self.position_type = 'long'
@@ -50,7 +45,6 @@ class RandomEntryTPSL(bt.Strategy):
                     self.order = self.sell(size=size)
                     self.position_type = 'short'
                 elif ttype == 'BOTH':
-                    # Randomly choose long or short
                     if random.choice([True, False]):
                         self.order = self.buy(size=size)
                         self.position_type = 'long'
