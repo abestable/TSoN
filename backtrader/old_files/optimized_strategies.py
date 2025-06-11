@@ -1,5 +1,12 @@
 import backtrader as bt
 import numpy as np
+from numba import jit
+
+@jit(nopython=True)
+def calculate_stats(window):
+    mean = np.mean(window)
+    std = np.std(window)
+    return mean, std
 
 class SimpleMeanReversion(bt.Strategy):
     params = (
@@ -13,14 +20,19 @@ class SimpleMeanReversion(bt.Strategy):
         self.dataclose = self.datas[0].close
         self.returns = bt.indicators.PercentChange(self.dataclose, period=1)
         self.order = None
+        self.window = np.zeros(self.p.period)
 
     def next(self):
         if len(self.dataclose) < self.p.period:
             return
-        # Calculate rolling mean and std
-        window = np.array([self.dataclose[-i] for i in range(self.p.period, 0, -1)])
-        mean = np.mean(window)
-        std = np.std(window)
+            
+        # Update window with new data
+        for i in range(self.p.period):
+            self.window[i] = self.dataclose[-i-1]
+            
+        # Calculate statistics using Numba-optimized function
+        mean, std = calculate_stats(self.window)
+        
         price = self.dataclose[0]
         zscore = (price - mean) / (std if std > 0 else 1e-8)
 

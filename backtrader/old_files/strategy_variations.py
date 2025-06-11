@@ -9,19 +9,33 @@ class MeanReversionEMA(bt.Strategy):
     )
 
     def __init__(self):
+        # Pre-allocate arrays for better performance
+        self.prices = np.zeros(self.p.period)
         self.ma = bt.indicators.EMA(self.data.close, period=self.p.period)
         self.std = bt.indicators.StandardDeviation(self.data.close, period=self.p.period)
         self.zscore = (self.data.close - self.ma) / self.std
+        
+        # Cache for position management
+        self.position_size = 0
+        self.entry_price = 0
 
     def next(self):
+        # Update price array efficiently
+        self.prices = np.roll(self.prices, -1)
+        self.prices[-1] = self.data.close[0]
+        
         if self.position:
             if abs(self.zscore[0]) < self.p.zexit:
                 self.close()
         else:
             if self.zscore[0] > self.p.zentry:
-                self.sell()
+                self.position_size = int(self.broker.getvalue() * 0.95 / self.data.close[0])
+                self.entry_price = self.data.close[0]
+                self.sell(size=self.position_size)
             elif self.zscore[0] < -self.p.zentry:
-                self.buy()
+                self.position_size = int(self.broker.getvalue() * 0.95 / self.data.close[0])
+                self.entry_price = self.data.close[0]
+                self.buy(size=self.position_size)
 
 class MeanReversionWithVolatility(bt.Strategy):
     params = dict(

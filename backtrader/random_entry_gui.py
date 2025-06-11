@@ -13,6 +13,9 @@ from PIL import Image, ImageTk
 from binance.client import Client
 from tqdm import tqdm
 from tkcalendar import DateEntry
+import numpy as np
+import matplotlib.pyplot as plt
+from multiprocessing import Pool, cpu_count
 
 class ProgressStrategy(RandomEntryTPSL):
     def __init__(self, *args, **kwargs):
@@ -204,48 +207,35 @@ def get_csv_date_limits(symbol, timeframe):
     except Exception:
         return None, None
 
-def run_backtest(tp, sl, symbol, timeframe, commission, initial_cash, size_pct, entry_period, max_hold, trade_type, start_date_str=None, end_date_str=None, progress_callback=None):
+def run_single_backtest(args):
+    tp, sl, symbol, timeframe, commission, initial_cash, size_pct, entry_period, max_hold, trade_type, use_numba = args
+    
     cerebro = bt.Cerebro()
-    # Ensure data file exists
     try:
-        filename = ensure_data_file(symbol, timeframe, progress_callback)
+        filename = ensure_data_file(symbol, timeframe, None)
     except Exception as e:
         raise Exception(f"Failed to get data for {symbol} {timeframe}: {e}")
+        
     df = pd.read_csv(filename, parse_dates=[0])
     df.columns = ['datetime', 'open', 'high', 'low', 'close', 'volume'] + list(df.columns[6:])
     df['datetime'] = pd.to_datetime(df['datetime'])
     df.set_index('datetime', inplace=True)
-    # Filtro per data se specificato
-    if start_date_str:
-        try:
-            start_date = pd.to_datetime(start_date_str)
-            df = df[df.index >= start_date]
-        except Exception:
-            raise Exception(f"Invalid start date: {start_date_str}")
-    if end_date_str:
-        try:
-            end_date = pd.to_datetime(end_date_str)
-            df = df[df.index <= end_date]
-        except Exception:
-            raise Exception(f"Invalid end date: {end_date_str}")
-    # Calcolo durata simulazione
-    if len(df) == 0:
-        raise Exception("No data in selected date range!")
+    
     start_date = df.index[0]
     end_date = df.index[-1]
     duration_days = (end_date - start_date).days
     duration_years = duration_days / 365.25
+    
     data = bt.feeds.PandasData(dataname=df)
     cerebro.adddata(data)
-    cerebro.addstrategy(ProgressStrategy, 
+    cerebro.addstrategy(RandomEntryTPSL, 
                        tp=tp,
                        sl=sl,
                        size_pct=size_pct,
                        entry_period=entry_period,
                        max_hold=max_hold,
                        trade_type=trade_type,
-                       progress_callback=progress_callback,
-                       total_bars=len(df))
+                       use_numba=use_numba)
     cerebro.broker.setcash(initial_cash)
     cerebro.broker.setcommission(commission=commission)
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', riskfreerate=0.01)
@@ -254,7 +244,7 @@ def run_backtest(tp, sl, symbol, timeframe, commission, initial_cash, size_pct, 
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
     cerebro.addanalyzer(bt.analyzers.VWR, _name='vwr')
     cerebro.addanalyzer(bt.analyzers.TimeReturn, _name='time_return')
-    initial_value = cerebro.broker.getvalue()
+    
     results = cerebro.run()
     strat = results[0]
     final_value = cerebro.broker.getvalue()
@@ -263,11 +253,13 @@ def run_backtest(tp, sl, symbol, timeframe, commission, initial_cash, size_pct, 
     drawdown = strat.analyzers.drawdown.get_analysis()
     trades = strat.analyzers.trades.get_analysis()
     vwr = strat.analyzers.vwr.get_analysis()
+    
     pnl_pct = (final_value - initial_cash) / initial_cash * 100
-    # Get exit counts
+    
     exit_tp = getattr(strat, 'exit_tp', None)
     exit_sl = getattr(strat, 'exit_sl', None)
     exit_time = getattr(strat, 'exit_time', None)
+    
     return {
         'pnl': pnl_pct,
         'sharpe': sharpe.get('sharperatio', 0),
@@ -282,12 +274,39 @@ def run_backtest(tp, sl, symbol, timeframe, commission, initial_cash, size_pct, 
         'exit_tp': exit_tp,
         'exit_sl': exit_sl,
         'exit_time': exit_time,
-        'cerebro': cerebro,
         'start_date': start_date,
         'end_date': end_date,
         'duration_days': duration_days,
-        'duration_years': duration_years
+        'duration_years': duration_years,
+        'elapsed': results[1],
+        'num_cpus': results[2],
+        'use_numba': use_numba
     }
+
+def run_backtest(tp, sl, symbol, timeframe, commission, initial_cash, size_pct, entry_period, max_hold, trade_type, num_cpus, use_numba, progress_callback=None):
+    print(f"Running backtests using {num_cpus} CPU cores...")
+    args = (tp, sl, symbol, timeframe, commission, initial_cash, size_pct, entry_period, max_hold, trade_type, use_numba)
+    start_time = time.time()
+    # Se vuoi batch/grid, args_list = [(...), (...), ...]
+    args_list = [args]  # Per ora solo una simulazione
+    if len(args_list) == 1 or num_cpus == 1:
+        # Caso singola simulazione: nessun multiprocessing
+        result = run_single_backtest(args)
+        elapsed = time.time() - start_time
+        result['elapsed'] = elapsed
+        result['num_cpus'] = 1
+        result['use_numba'] = use_numba
+        return result
+    else:
+        # Caso batch/grid: multiprocessing
+        with Pool(num_cpus) as pool:
+            results = pool.map(run_single_backtest, args_list)
+        elapsed = time.time() - start_time
+        # Qui results è una lista di dict, per ora ne restituiamo solo il primo
+        results[0]['elapsed'] = elapsed
+        results[0]['num_cpus'] = num_cpus
+        results[0]['use_numba'] = use_numba
+        return results[0]
 
 def run_test():
     test_button.config(state='disabled')
@@ -304,8 +323,6 @@ def run_test():
     max_hold = int(exit_bars_entry.get())
     plot_enabled = plot_var.get()
     trade_type = trade_type_var.get()
-    start_date_str = start_date_picker.get_date().strftime('%Y-%m-%d')
-    end_date_str = end_date_picker.get_date().strftime('%Y-%m-%d')
     
     def update_status(msg):
         root.after(0, lambda: status_label.config(text=msg))
@@ -317,7 +334,7 @@ def run_test():
                     root.after(0, lambda: update_status(value))
                 else:
                     root.after(0, lambda: progress_bar.configure(value=value))
-            results = run_backtest(tp, sl, symbol, timeframe, commission, initial_cash, size_pct, entry_period, max_hold, trade_type, start_date_str, end_date_str, progress_callback=update_progress)
+            results = run_backtest(tp, sl, symbol, timeframe, commission, initial_cash, size_pct, entry_period, max_hold, trade_type, cpu_count_var.get(), use_numba_var.get(), progress_callback=update_progress)
             root.after(0, lambda: update_result(results, plot_enabled))
         except Exception as e:
             error_msg = str(e)
@@ -372,6 +389,7 @@ def update_result(results, plot_enabled):
         (f"Exit by Take Profit: {results['exit_tp'] if results['exit_tp'] is not None else 'N/A'}", 'green'),
         (f"Exit by Stop Loss: {results['exit_sl'] if results['exit_sl'] is not None else 'N/A'}", 'red'),
         (f"Exit by Time Expiry: {results['exit_time'] if results['exit_time'] is not None else 'N/A'}", 'orange'),
+        (f"Tempo di calcolo: {results['elapsed']:.2f} secondi\nCPU usate: {results['num_cpus']}\nNumba: {'Sì' if results['use_numba'] else 'No'}", other_color),
     ]
     for i, (text, color) in enumerate(stats):
         lbl = tk.Label(results_frame, text=text, fg=color, anchor='w', font=('Arial', 12, 'bold'))
@@ -621,7 +639,7 @@ def update_timeframe_combo():
 # --- GUI LAYOUT ---
 root = tk.Tk()
 root.title("Random Entry Strategy Tester")
-root.attributes('-zoomed', True)  # Maximize window on Linux
+#root.attributes('-zoomed', True)  # Maximize window on Linux
 root.grid_rowconfigure(0, weight=1)
 root.grid_columnconfigure(0, weight=1)
 root.grid_columnconfigure(1, weight=1)
@@ -693,6 +711,17 @@ plot_var = tk.BooleanVar(value=False)
 plot_checkbox = ttk.Checkbutton(input_frame, text="Show Backtrader Plot", variable=plot_var)
 plot_checkbox.grid(row=97, column=0, columnspan=2, pady=10)
 
+cpu_count_var = tk.IntVar(value=cpu_count())
+use_numba_var = tk.BooleanVar(value=True)
+
+cpu_label = ttk.Label(input_frame, text="CPU da usare:")
+cpu_label.grid(row=12, column=0, sticky="w")
+cpu_entry = ttk.Entry(input_frame, textvariable=cpu_count_var, width=5)
+cpu_entry.grid(row=12, column=1, padx=5, pady=2)
+
+numba_check = ttk.Checkbutton(input_frame, text="Abilita Numba (compilazione veloce)", variable=use_numba_var)
+numba_check.grid(row=13, column=0, columnspan=2, sticky="w")
+
 test_button = ttk.Button(input_frame, text="Run Backtest", command=run_test)
 test_button.grid(row=98, column=0, columnspan=2, pady=20)
 
@@ -720,31 +749,13 @@ update_csv_button.grid(row=2, column=0, pady=5)
 # Inizializza la label del cash con la valuta corretta
 update_cash_label()
 
-ttk.Label(input_frame, text="Start Date (YYYY-MM-DD):").grid(row=10, column=0, sticky="w")
-start_date_picker = DateEntry(input_frame, date_pattern='yyyy-mm-dd')
-start_date_picker.grid(row=10, column=1, padx=5, pady=2)
-
-ttk.Label(input_frame, text="End Date (YYYY-MM-DD):").grid(row=11, column=0, sticky="w")
-end_date_picker = DateEntry(input_frame, date_pattern='yyyy-mm-dd')
-end_date_picker.grid(row=11, column=1, padx=5, pady=2)
-
-# Funzione per aggiornare i limiti dei date picker
-def update_date_limits(*args):
-    symbol = symbol_var.get()
-    timeframe = timeframe_var.get()
-    min_date, max_date = get_csv_date_limits(symbol, timeframe)
-    if min_date and max_date:
-        start_date_picker.config(mindate=min_date, maxdate=max_date, state='normal')
-        end_date_picker.config(mindate=min_date, maxdate=max_date, state='normal')
-        start_date_picker.set_date(min_date)
-        end_date_picker.set_date(max_date)
-    else:
-        # Disabilita i date picker se non ci sono dati
-        start_date_picker.config(state='disabled')
-        end_date_picker.config(state='disabled')
-
-# Aggiorna i limiti all'avvio
-update_date_limits()
+# Commento o rimuovo la funzione update_date_limits e tutti i riferimenti a start_date_picker e end_date_picker
+# def update_date_limits():
+#     ...
+#     start_date_picker.config(...)
+#     end_date_picker.config(...)
+# ...
+# E tutti i punti dove viene chiamata update_date_limits()
 
 # Update comboboxes with available CSV files
 update_symbol_combo()
