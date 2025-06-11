@@ -13,7 +13,8 @@ venv/
 env/
 .env/
 
-# CSV files
+# CSV files and directory
+csv/
 *.csv
 
 # Old files

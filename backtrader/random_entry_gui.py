@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import PhotoImage
+from tkinter import messagebox
 import threading
 from random_entry_strategy import RandomEntryTPSL
 import backtrader as bt
@@ -136,7 +137,7 @@ def fetch_historical_klines(symbol, interval, start_str, end_str=None, progress_
 
 def ensure_data_file(symbol, timeframe, progress_callback=None):
     """Ensure that the data file exists, download if necessary"""
-    filename = f'{symbol.lower()}_{timeframe}.csv'
+    filename = os.path.join('csv', f'{symbol.lower()}_{timeframe}.csv')
     
     if not os.path.exists(filename):
         if progress_callback:
@@ -194,7 +195,7 @@ def update_cash_label():
         initial_cash_entry.insert(0, default_cash)
 
 def get_csv_date_limits(symbol, timeframe):
-    filename = f'{symbol.lower()}_{timeframe}.csv'
+    filename = os.path.join('csv', f'{symbol.lower()}_{timeframe}.csv')
     try:
         df = pd.read_csv(filename, usecols=[0], parse_dates=[0])
         min_date = df.iloc[0, 0]
@@ -386,6 +387,237 @@ def update_error(error_msg):
     lbl = tk.Label(results_frame, text=f"Error: {error_msg}", fg='red', anchor='w', font=('Arial', 12, 'bold'))
     lbl.pack(anchor='w', pady=2)
 
+def get_available_trading_pairs():
+    """Get all available trading pairs from Binance"""
+    try:
+        client = Client()
+        exchange_info = client.get_exchange_info()
+        trading_pairs = []
+        
+        # Get all USDT, BTC, ETH, and BNB pairs
+        quote_currencies = ['USDT', 'BTC', 'ETH', 'BNB']
+        for symbol_info in exchange_info['symbols']:
+            symbol = symbol_info['symbol']
+            if symbol_info['status'] == 'TRADING':
+                for quote in quote_currencies:
+                    if symbol.endswith(quote):
+                        trading_pairs.append(symbol)
+                        break
+        
+        return sorted(trading_pairs)
+    except Exception as e:
+        print(f"Error fetching trading pairs: {e}")
+        # Return default pairs if API call fails
+        return ["ETHBTC", "BTCUSDT", "ETHUSDT", "ADAUSDT", "LINKUSDT", "DOTUSDT", 
+                "BNBUSDT", "SOLUSDT", "AVAXUSDT", "MATICUSDT", "XRPUSDT", "DOGEUSDT",
+                "LTCUSDT", "UNIUSDT", "AAVEUSDT", "ATOMUSDT", "NEARUSDT", "ALGOUSDT",
+                "ICPUSDT", "FILUSDT", "VETUSDT", "MANAUSDT", "SANDUSDT", "AXSUSDT",
+                "THETAUSDT", "XTZUSDT", "EOSUSDT", "TRXUSDT", "XLMUSDT", "ADAUSDT"]
+
+class UpdateCSVDialog:
+    def __init__(self, parent):
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.title("Update CSV Files")
+        self.dialog.geometry("600x400")
+        self.dialog.transient(parent)
+        self.dialog.grab_set()
+        
+        # Create main frame
+        main_frame = ttk.Frame(self.dialog, padding="10")
+        main_frame.pack(fill='both', expand=True)
+        
+        # Create frames for pairs and timeframes
+        pairs_frame = ttk.LabelFrame(main_frame, text="Trading Pairs", padding="5")
+        pairs_frame.pack(side='left', fill='both', expand=True, padx=(0, 5))
+        
+        timeframes_frame = ttk.LabelFrame(main_frame, text="Timeframes", padding="5")
+        timeframes_frame.pack(side='left', fill='both', expand=True, padx=(5, 0))
+        
+        # Add trading pairs listbox with scrollbar
+        pairs_scroll = ttk.Scrollbar(pairs_frame)
+        pairs_scroll.pack(side='right', fill='y')
+        
+        self.pairs_listbox = tk.Listbox(pairs_frame, selectmode='multiple', yscrollcommand=pairs_scroll.set, exportselection=0)
+        self.pairs_listbox.pack(side='left', fill='both', expand=True)
+        pairs_scroll.config(command=self.pairs_listbox.yview)
+        
+        # Add timeframes listbox with scrollbar
+        tf_scroll = ttk.Scrollbar(timeframes_frame)
+        tf_scroll.pack(side='right', fill='y')
+        
+        self.tf_listbox = tk.Listbox(timeframes_frame, selectmode='multiple', yscrollcommand=tf_scroll.set, exportselection=0)
+        self.tf_listbox.pack(side='left', fill='both', expand=True)
+        tf_scroll.config(command=self.tf_listbox.yview)
+        
+        # Add buttons frame
+        buttons_frame = ttk.Frame(self.dialog, padding="5")
+        buttons_frame.pack(fill='x', padx=10, pady=5)
+        
+        # Add Select All button for pairs
+        ttk.Button(buttons_frame, text="Select All Pairs", 
+                  command=lambda: self.select_all(self.pairs_listbox)).pack(side='left', padx=5)
+        
+        # Add Select All button for timeframes
+        ttk.Button(buttons_frame, text="Select All Timeframes", 
+                  command=lambda: self.select_all(self.tf_listbox)).pack(side='left', padx=5)
+        
+        # Add Update button
+        ttk.Button(buttons_frame, text="Update Selected", 
+                  command=self.on_update).pack(side='right', padx=5)
+        
+        # Add Cancel button
+        ttk.Button(buttons_frame, text="Cancel", 
+                  command=self.dialog.destroy).pack(side='right', padx=5)
+        
+        # Populate lists
+        self.populate_lists()
+        
+        # Center the dialog
+        self.dialog.update_idletasks()
+        width = self.dialog.winfo_width()
+        height = self.dialog.winfo_height()
+        x = (self.dialog.winfo_screenwidth() // 2) - (width // 2)
+        y = (self.dialog.winfo_screenheight() // 2) - (height // 2)
+        self.dialog.geometry(f'{width}x{height}+{x}+{y}')
+        
+        # Bind mouse events to maintain selection
+        self.pairs_listbox.bind('<Button-1>', lambda e: self.pairs_listbox.focus_set())
+        self.tf_listbox.bind('<Button-1>', lambda e: self.tf_listbox.focus_set())
+        
+        # Set initial focus
+        self.pairs_listbox.focus_set()
+    
+    def select_all(self, listbox):
+        listbox.select_set(0, tk.END)
+    
+    def populate_lists(self):
+        # Get available trading pairs
+        trading_pairs = get_available_trading_pairs()
+        for pair in trading_pairs:
+            self.pairs_listbox.insert(tk.END, pair)
+        
+        # Add timeframes
+        timeframes = ["1m", "5m", "15m", "1h", "4h", "1d"]
+        for tf in timeframes:
+            self.tf_listbox.insert(tk.END, tf)
+    
+    def on_update(self):
+        selected_pairs = [self.pairs_listbox.get(i) for i in self.pairs_listbox.curselection()]
+        selected_timeframes = [self.tf_listbox.get(i) for i in self.tf_listbox.curselection()]
+        
+        if not selected_pairs or not selected_timeframes:
+            messagebox.showwarning("Warning", "Please select at least one pair and one timeframe")
+            return
+        
+        self.dialog.destroy()
+        update_csv_files(selected_pairs, selected_timeframes)
+
+def update_csv_files(selected_pairs, selected_timeframes):
+    """Update CSV files for selected pairs and timeframes"""
+    update_csv_button.config(state='disabled')
+    progress_bar['value'] = 0
+    progress_bar['maximum'] = 100
+    
+    def update_status(msg):
+        root.after(0, lambda: status_label.config(text=msg))
+    
+    def update_progress(value):
+        if isinstance(value, str):
+            root.after(0, lambda: update_status(value))
+        else:
+            root.after(0, lambda: progress_bar.configure(value=value))
+    
+    def on_complete():
+        root.after(0, lambda: update_csv_button.config(state='normal'))
+        # Update comboboxes after download completes
+        root.after(0, update_symbol_combo)
+        root.after(0, update_timeframe_combo)
+        # Update date limits for current symbol
+        root.after(0, update_date_limits)
+    
+    def run_update():
+        try:
+            total_items = len(selected_pairs) * len(selected_timeframes)
+            current_item = 0
+            
+            for symbol in selected_pairs:
+                for timeframe in selected_timeframes:
+                    try:
+                        current_item += 1
+                        progress = (current_item / total_items) * 100
+                        update_progress(f"Processing {symbol} {timeframe} ({current_item}/{total_items})...")
+                        
+                        # Calculate start date based on timeframe
+                        days = get_days_for_timeframe(timeframe)
+                        start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+                        
+                        # Download data
+                        df = fetch_historical_klines(symbol, timeframe, start_date, progress_callback=update_progress)
+                        
+                        # Save to CSV
+                        filename = os.path.join('csv', f'{symbol.lower()}_{timeframe}.csv')
+                        df.to_csv(filename)
+                        
+                        update_progress(f"Successfully updated {filename} with {len(df)} rows")
+                        
+                    except Exception as e:
+                        update_progress(f"Error updating {symbol} {timeframe}: {str(e)}")
+                        continue
+            
+            # Update date limits for current symbol after all downloads
+            update_date_limits()
+            update_progress("All selected CSV files have been updated!")
+            
+        except Exception as e:
+            update_progress(f"Error: {str(e)}")
+        finally:
+            on_complete()
+    
+    threading.Thread(target=run_update, daemon=True).start()
+
+def update_csv_thread():
+    """Show dialog to select pairs and timeframes for update"""
+    dialog = UpdateCSVDialog(root)
+
+def get_available_csv_files():
+    """Get list of available CSV files in the csv directory"""
+    available_pairs = set()
+    available_timeframes = set()
+    
+    if os.path.exists('csv'):
+        for filename in os.listdir('csv'):
+            if filename.endswith('.csv'):
+                # Extract symbol and timeframe from filename (e.g., 'btcusdt_1h.csv')
+                parts = filename[:-4].split('_')  # Remove .csv and split
+                if len(parts) == 2:
+                    symbol, timeframe = parts
+                    available_pairs.add(symbol.upper())
+                    available_timeframes.add(timeframe)
+    
+    return sorted(list(available_pairs)), sorted(list(available_timeframes))
+
+def update_symbol_combo():
+    """Update the symbol combobox with available pairs"""
+    available_pairs, _ = get_available_csv_files()
+    if available_pairs:
+        symbol_combo['values'] = available_pairs
+        if symbol_var.get() not in available_pairs:
+            symbol_var.set(available_pairs[0])
+    else:
+        symbol_combo['values'] = ["No CSV files available"]
+        symbol_var.set("No CSV files available")
+
+def update_timeframe_combo():
+    """Update the timeframe combobox with available timeframes"""
+    _, available_timeframes = get_available_csv_files()
+    if available_timeframes:
+        timeframe_combo['values'] = available_timeframes
+        if timeframe_var.get() not in available_timeframes:
+            timeframe_var.set(available_timeframes[0])
+    else:
+        timeframe_combo['values'] = ["No CSV files available"]
+        timeframe_var.set("No CSV files available")
+
 # --- GUI LAYOUT ---
 root = tk.Tk()
 root.title("Random Entry Strategy Tester")
@@ -400,8 +632,8 @@ input_frame.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
 input_frame.grid_rowconfigure(99, weight=1)
 
 ttk.Label(input_frame, text="Trading Pair:").grid(row=0, column=0, sticky="w")
-symbol_var = tk.StringVar(value="ETHBTC")
-symbol_combo = ttk.Combobox(input_frame, textvariable=symbol_var, values=["ETHBTC", "BTCUSDT", "ETHUSDT", "ADAUSDT", "LINKUSDT", "DOTUSDT", "BNBUSDT", "SOLUSDT", "AVAXUSDT", "MATICUSDT"])
+symbol_var = tk.StringVar()
+symbol_combo = ttk.Combobox(input_frame, textvariable=symbol_var)
 symbol_combo.grid(row=0, column=1, padx=5, pady=2)
 symbol_combo.bind('<<ComboboxSelected>>', lambda e: (update_cash_label(), update_date_limits()))
 
@@ -416,8 +648,8 @@ sl_entry.insert(0, "10")
 sl_entry.grid(row=2, column=1, padx=5, pady=2)
 
 ttk.Label(input_frame, text="Timeframe:").grid(row=3, column=0, sticky="w")
-timeframe_var = tk.StringVar(value="4h")
-timeframe_combo = ttk.Combobox(input_frame, textvariable=timeframe_var, values=["1m", "5m", "15m", "1h", "4h", "1d"])
+timeframe_var = tk.StringVar()
+timeframe_combo = ttk.Combobox(input_frame, textvariable=timeframe_var)
 timeframe_combo.grid(row=3, column=1, padx=5, pady=2)
 timeframe_combo.bind('<<ComboboxSelected>>', lambda e: update_date_limits())
 
@@ -470,9 +702,9 @@ results_frame.grid(row=0, column=1, padx=10, pady=10, sticky="nsew")
 results_label = ttk.Label(results_frame, text="No results yet.", justify='left', anchor='nw')
 results_label.pack(fill='both', expand=True)
 
-# BOTTOM: Progress bar and status
-progress_frame = ttk.Frame(root)
-progress_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=20, pady=10)
+# Create progress frame
+progress_frame = ttk.LabelFrame(root, text="Progress", padding="5")
+progress_frame.grid(row=2, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
 progress_frame.grid_columnconfigure(0, weight=1)
 
 status_label = ttk.Label(progress_frame, text="Ready", anchor="w")
@@ -480,6 +712,10 @@ status_label.grid(row=0, column=0, sticky="ew", pady=(0, 5))
 
 progress_bar = ttk.Progressbar(progress_frame, mode='determinate', length=300)
 progress_bar.grid(row=1, column=0, sticky="ew")
+
+# Add Update CSV button after the progress bar
+update_csv_button = ttk.Button(progress_frame, text="Update CSV", command=update_csv_thread)
+update_csv_button.grid(row=2, column=0, pady=5)
 
 # Inizializza la label del cash con la valuta corretta
 update_cash_label()
@@ -509,5 +745,9 @@ def update_date_limits(*args):
 
 # Aggiorna i limiti all'avvio
 update_date_limits()
+
+# Update comboboxes with available CSV files
+update_symbol_combo()
+update_timeframe_combo()
 
 root.mainloop() 
